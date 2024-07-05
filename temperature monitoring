@@ -1,0 +1,59 @@
+Map.centerObject(your obejct geometry);
+Map.addLayer(umea)
+var L8 = ee.ImageCollection ('LANDSAT/LC08/C02/T1_TOA')
+.filterBounds(umea)
+.filterDate('start date','end date')
+.filterMetadata('CLOUD_COVER','Less_than',1)
+.mean()
+.clip(umea)
+Map.addLayer(L8, {bands:["B4", "B3", "B2"]}); // using true color band
+
+
+var time_start = 'your start year', time_end='your ended year';
+
+var era5 = imageCollection.select('temperature_2m')
+.filterDate (time_start, time_end);
+
+
+function temporal_collection(collection, start, count, interval,unit){
+  var seq = ee.List.sequence(0, ee.Number(count).subtract(1));
+  var origin_date = ee.Date(start);
+  return ee.ImageCollection(seq.map(function(i){
+    var start_date = origin_date.advance(ee.Number(interval).multiply(i), unit);
+    var end_date = origin_date.advance(ee.Number(interval).multiply(ee.Number(i).add(1)), unit);
+    return collection.filterDate(start_date, end_date).mean()
+    .set('system:time_start', start_date.millis())
+    .set('sytem:time_end', end_date.millis())
+    }))
+}
+
+var annual = temporal_collection(era5,time_start, 40, 1, 'year') // 40 mean that user using 40 years time series for the analysis
+.map(function(img){
+  return img.subtract(273.15)
+  .copyProperties(img, img.propertyNames())
+  });
+ print(
+ ui.Chart.image.series(annual, umea, ee.Reducer.max(), 1000, 'system:time_start')
+  )
+  
+// get the percent of changes long term-average
+
+var temp_mean = annual.mean();
+
+//eq = ((temp-mean)/(mean))= 100
+
+var change = annual.map(function(img){
+  var eq = img.expression('((temp-mean)/(mean))*100',{
+   'temp':img, 'mean':temp_mean
+  }).rename('temp_change');
+  return eq
+  .copyProperties(img, img.propertyNames())
+  })
+  
+
+print(
+ ui.Chart.image.series(change , umea, ee.Reducer.max()
+ , 1000, 'system:time_start').setChartType('ColumnChart')
+  )
+  
+  
