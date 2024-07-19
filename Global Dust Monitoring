@@ -1,0 +1,43 @@
+var aot = imageCollection.select('DUSCATAU')
+.filterDate('2022','2023')
+.filter(ee.Filter.calendarRange(12,12,'hour'))
+
+print(aot);
+
+//AOT MAX VALUE 2022-2023
+var aot_max = aot.max();
+Map.addLayer(aot_max,{palette:['black','red']},'aot_max',false)
+
+var cons = ee.Image.constant(0);
+
+var clear = cons.where(aot_max.lt(0.15),10)
+var moderate = cons.where(aot_max.gt(0.15).and(aot_max).lt(0.3),10);
+var hazy = moderate.where(aot_max.gt(0.3).and(aot_max.lt(0.5)),30)
+var very_hazy = hazy.where(aot_max.gt(0.5).and(aot_max.lt(8)),40)
+
+
+Map.addLayer(very_hazy,{min: 10, max:40, palette:['blue','yellow','orange','red']},'very_hazy',false)
+
+
+// calculate dust event frequencies each pixel calculate a number very hazy event
+//how many of timw one pixel experience in very hazy condition in 2022 var thr = threeshold
+
+var freq = aot.map(function(img){
+  var thr = img.gt(0.5)
+  return thr
+}).sum().divide(aot.size()).multiply(100);
+
+Map.addLayer(freq,{palette:['black','yellow','orange','red']},'aot_freq',false)
+
+
+
+//calculate persentage of very hazy condition
+
+//Assess the trend AOT changes increasing or decreasing image
+
+var aot_trend = aot.reduce(ee.Reducer.kendallsCorrelation());
+
+print(aot_trend)
+
+Map.addLayer(aot_trend.select('DUSCATAU_tau'),{palette:['black','yellow','orange','red']},'aot_trend',false)
+
